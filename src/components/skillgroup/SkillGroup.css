@@ -1,0 +1,39 @@
+.skill-group__label {
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  cursor: default;
+  user-select: none;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.skill-tag:hover {
+  border-color: var(--cyan);
+  background: var(--cyan-dim);
+  color: var(--white);
+}
+
+.skill-tag__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--cyan);
+  flex-shrink: 0;
+  opacity: 0.6;
+}

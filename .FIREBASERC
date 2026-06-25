@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "my-awesome-porto"
+  },
+  "targets": {
+    "my-awesome-porto": {
+      "hosting": {
+        "portfolio": [
+          "revaldyazura-portfolio"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
