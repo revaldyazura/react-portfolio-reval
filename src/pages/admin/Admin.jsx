@@ -9,34 +9,47 @@ import {
 import { auth, db } from "../../firebase";
 import { AuthContext } from "../../context/AuthContext";
 import "./Admin.css";
+import ImgSlot from "../../components/imgslot/ImgSlot.jsx";
+// import SectionHome from "../../components/sectionhome/SectionHome.jsx";
+
+
+/* ════════════════════════════════════════════════════════════
+   FILE UPLOAD UTILITY
+   - Dev mode  → POST ke /dev-upload (Vite plugin nulis ke public/)
+   - Prod mode → reminder manual copy saja
+════════════════════════════════════════════════════════════ */
+const isDev = import.meta.env.DEV;
+
+const uploadToPublic = async (file, destPath) => {
+  if (!isDev) {
+    // production: tidak bisa auto-upload, return path saja
+    return { ok: false, path: "/" + destPath, manual: true };
+  }
+
+  const formData = new FormData();
+  formData.append("path", destPath);
+  formData.append("file", file);
+
+  const res  = await fetch("/dev-upload", { method: "POST", body: formData });
+  const json = await res.json();
+  return json; // { ok: true, path: "/cv.pdf" }
+};
 
 /* ════════════════════════════════════════════════════════════
    UTILITIES
 ════════════════════════════════════════════════════════════ */
-
-/** Toast notification hook */
 const useToast = () => {
   const [toast, setToast] = useState(null);
   const show = useCallback((msg, type = "success") => {
     setToast({ msg, type, id: Date.now() });
-    setTimeout(() => setToast(null), 2800);
+    setTimeout(() => setToast(null), 3200);
   }, []);
   return { toast, show };
-};
-
-/** Save file to public/ via fetch PUT — works in dev only via vite plugin or manual copy.
- *  In production with Firebase Hosting the user manually puts files in public/.
- *  Here we just track filenames in Firestore and show instructions when needed. */
-const saveFileToPublic = async (file, destPath) => {
-  // Vite dev server doesn't support writing to public/ via fetch.
-  // We return the expected public path and remind user to copy the file.
-  return `/${destPath}`;
 };
 
 /* ════════════════════════════════════════════════════════════
    SHARED COMPONENTS
 ════════════════════════════════════════════════════════════ */
-
 const Toast = ({ toast }) => {
   if (!toast) return null;
   return (
@@ -56,60 +69,72 @@ const Field = ({ label, children }) => (
   </div>
 );
 
-/** Single image upload slot */
-const ImgSlot = ({ label, value, onChange }) => {
-  const [preview, setPreview] = useState(value || null);
+// const ImgSlot = ({ label, value, onChange }) => {
+//   const [preview, setPreview] = useState(value || null);
 
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPreview(URL.createObjectURL(file));
-    onChange(file);
-  };
+//   useEffect(() => {
+//     setPreview(value);
+//   }, [value]);
 
-  const clear = (e) => {
-    e.stopPropagation();
-    setPreview(null);
-    onChange(null);
-  };
+//   const handleFile = (e) => {
+//     const file = e.target.files?.[0];
+//     if (!file) return;
+//     setPreview(URL.createObjectURL(file));
+//     onChange(file);
+//   };
 
-  return (
-    <div className="admin-img-slot">
-      <input type="file" accept="image/*" onChange={handleFile} title={label} />
-      {preview ? (
-        <>
-          <img src={preview} alt="preview" className="admin-img-slot__preview" />
-          <button className="admin-img-slot__clear" onClick={clear} type="button">×</button>
-        </>
-      ) : (
-        <div className="admin-img-slot__placeholder">
-          <span>+</span>
-          <span>{label}</span>
-        </div>
-      )}
-    </div>
-  );
-};
+//   const clear = (e) => {
+//     e.stopPropagation();
+//     setPreview(null);
+//     onChange(null);
+//   };
+
+//   return (
+//     <div className="admin-img-slot">
+//       <input 
+//         type="file" 
+//         accept="image/*" 
+//         onChange={handleFile} 
+//         style={{
+//           position: 'absolute',
+//           top: 0, left: 0, width: '100%', height: '100%',
+//           opacity: 0, cursor: 'pointer', zIndex: 10
+//         }}
+//         title={label} 
+//       />
+//       {preview ? (
+//         <>
+//           <img src={preview} alt="preview" className="admin-img-slot__preview" />
+//           <button className="admin-img-slot__clear" onClick={clear} type="button">×</button>
+//         </>
+//       ) : (
+//         <div className="admin-img-slot__placeholder">
+//           <span>+</span>
+//           <span>{label}</span>
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
 
 /* ════════════════════════════════════════════════════════════
    SECTION: HOME
 ════════════════════════════════════════════════════════════ */
 const SectionHome = ({ showToast }) => {
-  const [data, setData]       = useState({ name:"", role:"", bio:"", skills:[], cvUrl:"/cv.pdf" });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
+  const [data, setData]             = useState({ name:"", role:"", bio:"", skills:[], cvPath:"/cv.pdf" });
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
   const [skillInput, setSkillInput] = useState("");
-  const [cvFile, setCvFile]   = useState(null);
-  const [expItems, setExpItems] = useState([]);
+  const [cvFile, setCvFile]         = useState(null);
+  const [expItems, setExpItems]     = useState([]);
 
-  /* fetch */
   useEffect(() => {
     const fetch = async () => {
       try {
         const snap = await getDoc(doc(db, "meta", "home"));
         if (snap.exists()) {
           const d = snap.data();
-          setData({ name: d.name||"", role: d.role||"", bio: d.bio||"", skills: d.skills||[], cvUrl: d.cvUrl||"/cv.pdf" });
+          setData({ name: d.name||"", role: d.role||"", bio: d.bio||"", skills: d.skills||[], cvPath: d.cvPath||"/cv.pdf" });
           setExpItems(d.experience || []);
         }
       } finally { setLoading(false); }
@@ -123,40 +148,38 @@ const SectionHome = ({ showToast }) => {
     setData(p => ({ ...p, skills: [...p.skills, v] }));
     setSkillInput("");
   };
-
-  const removeSkill = (s) =>
-    setData(p => ({ ...p, skills: p.skills.filter(x => x !== s) }));
-
-  const addExp = () =>
-    setExpItems(p => [...p, { date: "", title: "", description: "" }]);
-
-  const updateExp = (i, field, val) =>
-    setExpItems(p => p.map((x, idx) => idx === i ? { ...x, [field]: val } : x));
-
-  const removeExp = (i) =>
-    setExpItems(p => p.filter((_, idx) => idx !== i));
+  const removeSkill = (s) => setData(p => ({ ...p, skills: p.skills.filter(x => x !== s) }));
+  const addExp      = () => setExpItems(p => [...p, { date:"", title:"", description:"" }]);
+  const updateExp   = (i, field, val) => setExpItems(p => p.map((x,idx) => idx===i ? {...x,[field]:val} : x));
+  const removeExp   = (i) => setExpItems(p => p.filter((_,idx) => idx!==i));
 
   const save = async () => {
     setSaving(true);
     try {
-      let cvUrl = data.cvUrl;
+      let cvPath = data.cvPath;
 
-      /* CV file selected — user must manually copy to public/cv.pdf */
       if (cvFile) {
-        cvUrl = "/cv.pdf";
-        showToast(`CV selected: copy "${cvFile.name}" to public/cv.pdf`, "success");
+        const ext    = cvFile.name.split(".").pop();
+        const dest   = `cv.${ext}`; // → public/cv.pdf
+        const result = await uploadToPublic(cvFile, dest);
+
+        if (result.ok) {
+          cvPath = result.path; // "/cv.pdf"
+          showToast("CV uploaded to public/cv.pdf ✓");
+        } else if (result.manual) {
+          cvPath = "/" + dest;
+          showToast(`Production: copy "${cvFile.name}" → public/cv.pdf manually`, "error");
+        } else {
+          showToast("CV upload failed: " + result.error, "error");
+        }
       }
 
-      await setDoc(doc(db, "meta", "home"), {
-        ...data,
-        cvUrl,
-        experience: expItems,
-      });
-      setData(p => ({ ...p, cvUrl }));
+      await setDoc(doc(db, "meta", "home"), { ...data, cvPath, experience: expItems });
+      setData(p => ({ ...p, cvPath }));
       setCvFile(null);
       if (!cvFile) showToast("Home content saved.");
-    } catch {
-      showToast("Failed to save. Try again.", "error");
+    } catch (err) {
+      showToast("Failed to save: " + err.message, "error");
     } finally { setSaving(false); }
   };
 
@@ -171,13 +194,13 @@ const SectionHome = ({ showToast }) => {
       <div className="admin-card">
         <p className="admin-card__title">Basic info</p>
         <Field label="Display name">
-          <input className="admin-input" value={data.name} onChange={e => setData(p=>({...p,name:e.target.value}))} placeholder="Your Name" />
+          <input className="admin-input" value={data.name} onChange={e=>setData(p=>({...p,name:e.target.value}))} placeholder="Your Name" />
         </Field>
         <Field label="Role / title">
-          <input className="admin-input" value={data.role} onChange={e => setData(p=>({...p,role:e.target.value}))} placeholder="Full-Stack Developer" />
+          <input className="admin-input" value={data.role} onChange={e=>setData(p=>({...p,role:e.target.value}))} placeholder="Full-Stack Developer" />
         </Field>
         <Field label="Bio — use **bold** for emphasis, newline for paragraphs">
-          <textarea className="admin-textarea" rows={5} value={data.bio} onChange={e => setData(p=>({...p,bio:e.target.value}))} placeholder="Tell visitors about yourself..." style={{ minHeight:"120px" }} />
+          <textarea className="admin-textarea" rows={5} value={data.bio} onChange={e=>setData(p=>({...p,bio:e.target.value}))} placeholder="Tell visitors about yourself..." style={{ minHeight:"120px" }} />
         </Field>
       </div>
 
@@ -185,11 +208,12 @@ const SectionHome = ({ showToast }) => {
       <div className="admin-card">
         <p className="admin-card__title">CV / Resume</p>
         <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.68rem", color:"var(--muted)", marginBottom:"10px" }}>
-          Current path: <span style={{ color:"var(--cyan)" }}>{data.cvUrl}</span>
+          Current path: <span style={{ color:"var(--cyan)" }}>{data.cvPath}</span>
+          {isDev && <span style={{ color:"var(--cyan)", marginLeft:"8px" }}>— auto upload aktif ✓</span>}
         </p>
         <Field label="Upload new CV (PDF)">
           <div className="admin-upload-area">
-            <input type="file" accept=".pdf" onChange={e => setCvFile(e.target.files?.[0] || null)} />
+            <input type="file" accept=".pdf" onChange={e=>setCvFile(e.target.files?.[0]||null)} />
             <div className="admin-upload-icon">↑</div>
             <p className="admin-upload-text">
               Drop PDF here or <span>browse</span>
@@ -198,13 +222,15 @@ const SectionHome = ({ showToast }) => {
           {cvFile && (
             <div className="admin-upload-preview">
               <span className="admin-upload-preview__name">📄 {cvFile.name}</span>
-              <button className="admin-upload-preview__clear" onClick={() => setCvFile(null)} type="button">×</button>
+              <button className="admin-upload-preview__clear" onClick={()=>setCvFile(null)} type="button">×</button>
             </div>
           )}
         </Field>
-        <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.65rem", color:"var(--muted)", marginTop:"8px", lineHeight:"1.6" }}>
-          ⚠ After saving, manually copy your PDF to <span style={{ color:"var(--cyan)" }}>public/cv.pdf</span> in your project root.
-        </p>
+        {!isDev && (
+          <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.65rem", color:"var(--muted)", marginTop:"8px", lineHeight:"1.6" }}>
+            ⚠ Production: copy PDF ke <span style={{ color:"var(--cyan)" }}>public/cv.pdf</span> lalu deploy ulang.
+          </p>
+        )}
       </div>
 
       {/* skills */}
@@ -217,21 +243,17 @@ const SectionHome = ({ showToast }) => {
           {data.skills.map(s => (
             <span key={s} className="admin-skill-tag">
               {s}
-              <button className="admin-skill-remove" onClick={() => removeSkill(s)} type="button" aria-label={`Remove ${s}`}>×</button>
+              <button className="admin-skill-remove" onClick={()=>removeSkill(s)} type="button" aria-label={`Remove ${s}`}>×</button>
             </span>
           ))}
-          {data.skills.length === 0 && (
+          {data.skills.length===0 && (
             <span style={{ fontFamily:"var(--font-mono)", fontSize:"0.7rem", color:"var(--muted)" }}>No skills added yet.</span>
           )}
         </div>
         <div className="admin-skill-add">
-          <input
-            className="admin-input"
-            placeholder="Frontend: React"
-            value={skillInput}
-            onChange={e => setSkillInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addSkill())}
-          />
+          <input className="admin-input" placeholder="Frontend: React" value={skillInput}
+            onChange={e=>setSkillInput(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&(e.preventDefault(),addSkill())} />
           <button className="admin-btn admin-btn--ghost admin-btn--sm" onClick={addSkill} type="button">+ Add</button>
         </div>
       </div>
@@ -242,23 +264,16 @@ const SectionHome = ({ showToast }) => {
         {expItems.map((exp, i) => (
           <div key={i} className="admin-exp-item">
             <div className="admin-exp-item__header">
-              <input
-                className="admin-input"
-                style={{ flex:1 }}
-                placeholder="Jun 2023 – Aug 2024"
-                value={exp.date}
-                onChange={e => updateExp(i, "date", e.target.value)}
-              />
-              <button className="admin-btn admin-btn--danger admin-btn--sm" onClick={() => removeExp(i)} type="button">Remove</button>
+              <input className="admin-input" style={{ flex:1 }} placeholder="Jun 2023 – Aug 2024" value={exp.date} onChange={e=>updateExp(i,"date",e.target.value)} />
+              <button className="admin-btn admin-btn--danger admin-btn--sm" onClick={()=>removeExp(i)} type="button">Remove</button>
             </div>
-            <input className="admin-input" placeholder="Company | Role" value={exp.title} onChange={e => updateExp(i, "title", e.target.value)} />
-            <textarea className="admin-textarea" rows={2} placeholder="Description..." value={exp.description} onChange={e => updateExp(i, "description", e.target.value)} style={{ minHeight:"60px" }} />
+            <input className="admin-input" placeholder="Company | Role" value={exp.title} onChange={e=>updateExp(i,"title",e.target.value)} />
+            <textarea className="admin-textarea" rows={2} placeholder="Description..." value={exp.description} onChange={e=>updateExp(i,"description",e.target.value)} style={{ minHeight:"60px" }} />
           </div>
         ))}
         <button className="admin-btn admin-btn--ghost admin-btn--sm" onClick={addExp} type="button" style={{ marginTop:"4px" }}>+ Add experience</button>
       </div>
 
-      {/* save */}
       <div style={{ display:"flex", justifyContent:"flex-end", marginTop:"1rem" }}>
         <button className="admin-btn admin-btn--primary" onClick={save} disabled={saving}>
           {saving ? <><Spinner /> Saving...</> : "↗ Save changes"}
@@ -272,28 +287,25 @@ const SectionHome = ({ showToast }) => {
    SECTION: PROJECTS
 ════════════════════════════════════════════════════════════ */
 const SectionProjects = ({ showToast }) => {
-  const [projects, setProjects]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [activeId, setActiveId]   = useState(null);
-  const [saving, setSaving]       = useState(false);
-  const [deleting, setDeleting]   = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [activeId, setActiveId] = useState(null);
+  const [saving, setSaving]     = useState(false);
+  const [deleting, setDeleting] = useState(null);
 
-  /* blank project template */
   const blank = () => ({
     title:"", description:"", techStack:[], images:[null,null,null],
     githubUrl:"", liveUrl:"", order: projects.length,
   });
 
-  /* local edit state */
-  const [form, setForm]           = useState(blank());
-  const [tagInput, setTagInput]   = useState("");
-  const [imgFiles, setImgFiles]   = useState([null, null, null]);
+  const [form, setForm]         = useState(blank());
+  const [tagInput, setTagInput] = useState("");
+  const [imgFiles, setImgFiles] = useState([null,null,null]);
 
-  /* fetch */
   useEffect(() => {
     const fetch = async () => {
       try {
-        const q    = query(collection(db, "projects"), orderBy("order","asc"));
+        const q    = query(collection(db,"projects"), orderBy("order","asc"));
         const snap = await getDocs(q);
         setProjects(snap.docs.map(d => ({ id:d.id, ...d.data() })));
       } finally { setLoading(false); }
@@ -303,7 +315,7 @@ const SectionProjects = ({ showToast }) => {
 
   const selectProject = (p) => {
     setActiveId(p.id);
-    setForm({ ...p, techStack: p.techStack||[], images: p.images||[null,null,null] });
+    setForm({ ...p, techStack:p.techStack||[], images:p.images||[null,null,null] });
     setImgFiles([null,null,null]);
     setTagInput("");
   };
@@ -315,54 +327,54 @@ const SectionProjects = ({ showToast }) => {
     setTagInput("");
   };
 
-  const addTag = () => {
-    const v = tagInput.trim();
-    if (!v || form.techStack.includes(v)) return;
-    setForm(p => ({ ...p, techStack:[...p.techStack,v] }));
-    setTagInput("");
-  };
+  const addTag    = () => { const v=tagInput.trim(); if(!v||form.techStack.includes(v))return; setForm(p=>({...p,techStack:[...p.techStack,v]})); setTagInput(""); };
   const removeTag = (t) => setForm(p=>({...p,techStack:p.techStack.filter(x=>x!==t)}));
-
-  const setImg = (i, file) => {
-    const arr = [...imgFiles];
-    arr[i] = file;
-    setImgFiles(arr);
-  };
+  const setImg    = (i,file) => { const a=[...imgFiles]; a[i]=file; setImgFiles(a); };
 
   const save = async () => {
     if (!form.title.trim()) { showToast("Title is required.", "error"); return; }
     setSaving(true);
     try {
-      /* Build image paths: if new file selected → /title/image_N.jpg, else keep existing */
-      const slug = form.title.trim().toLowerCase().replace(/\s+/g,"-");
-      const images = imgFiles.map((file, i) =>
-        file ? `/${slug}/image_${i+1}.${file.name.split(".").pop()}` : (form.images?.[i] || null)
-      );
+      const slug   = form.title.trim().toLowerCase().replace(/\s+/g,"-");
+      const images = [...(form.images||[null,null,null])];
+
+      /* upload each selected image file */
+      for (let i = 0; i < 3; i++) {
+        const file = imgFiles[i];
+        if (!file) continue;
+
+        const ext    = file.name.split(".").pop();
+        const dest   = `${slug}/image_${i+1}.${ext}`;
+        const result = await uploadToPublic(file, dest);
+
+        if (result.ok) {
+          images[i] = result.path; // "/{slug}/image_1.jpg"
+          showToast(`Image ${i+1} uploaded ✓`);
+        } else if (result.manual) {
+          images[i] = "/" + dest;
+          showToast(`Production: copy image ${i+1} → public/${dest}`, "error");
+        } else {
+          showToast(`Image ${i+1} upload failed: ${result.error}`, "error");
+        }
+      }
 
       const payload = { ...form, images, order: form.order ?? projects.length };
 
       if (activeId === "__new__") {
-        const ref = await addDoc(collection(db,"projects"), payload);
-        const newP = { id:ref.id, ...payload };
-        setProjects(p => [...p, newP]);
+        const ref  = await addDoc(collection(db,"projects"), payload);
+        setProjects(p => [...p, { id:ref.id, ...payload }]);
         setActiveId(ref.id);
         showToast("Project created.");
       } else {
-        await updateDoc(doc(db,"projects", activeId), payload);
-        setProjects(p => p.map(x => x.id===activeId ? { ...x, ...payload } : x));
+        await updateDoc(doc(db,"projects",activeId), payload);
+        setProjects(p => p.map(x => x.id===activeId ? {...x,...payload} : x));
         showToast("Project saved.");
-      }
-
-      /* Remind user to copy image files */
-      const newFiles = imgFiles.filter(Boolean);
-      if (newFiles.length) {
-        showToast(`Copy ${newFiles.length} image(s) to public/${slug}/image_N.ext`, "success");
       }
 
       setImgFiles([null,null,null]);
       setForm(p => ({ ...p, images }));
-    } catch {
-      showToast("Failed to save. Try again.", "error");
+    } catch (err) {
+      showToast("Failed to save: " + err.message, "error");
     } finally { setSaving(false); }
   };
 
@@ -371,19 +383,18 @@ const SectionProjects = ({ showToast }) => {
     setDeleting(id);
     try {
       await deleteDoc(doc(db,"projects",id));
-      setProjects(p => p.filter(x => x.id!==id));
+      setProjects(p => p.filter(x=>x.id!==id));
       if (activeId===id) { setActiveId(null); setForm(blank()); }
       showToast("Project deleted.");
-    } catch {
-      showToast("Failed to delete.", "error");
-    } finally { setDeleting(null); }
+    } catch { showToast("Failed to delete.", "error"); }
+    finally { setDeleting(null); }
   };
 
   if (loading) return <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.75rem", color:"var(--muted)" }}>Loading...</p>;
 
   return (
     <div style={{ display:"grid", gridTemplateColumns:"220px 1fr", gap:"1.5rem", alignItems:"start" }}>
-      {/* project list */}
+      {/* list */}
       <div>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem" }}>
           <span style={{ fontFamily:"var(--font-mono)", fontSize:"0.65rem", color:"var(--muted)", letterSpacing:"0.1em", textTransform:"uppercase" }}>
@@ -391,34 +402,30 @@ const SectionProjects = ({ showToast }) => {
           </span>
           <button className="admin-btn admin-btn--primary admin-btn--sm" onClick={newProject}>+ New</button>
         </div>
-        {projects.map((p, i) => (
-          <div key={p.id} className={`admin-project-item ${activeId===p.id?"active":""}`} onClick={() => selectProject(p)}>
+        {projects.map((p,i) => (
+          <div key={p.id} className={`admin-project-item ${activeId===p.id?"active":""}`} onClick={()=>selectProject(p)}>
             <span className="admin-project-item__index">{String(i+1).padStart(2,"0")}</span>
-            <span className="admin-project-item__title">{p.title || "Untitled"}</span>
+            <span className="admin-project-item__title">{p.title||"Untitled"}</span>
             <div className="admin-project-item__actions">
-              <button
-                className="admin-btn admin-btn--danger admin-btn--sm"
-                onClick={e => { e.stopPropagation(); deleteProject(p.id); }}
-                disabled={deleting===p.id}
-              >
+              <button className="admin-btn admin-btn--danger admin-btn--sm"
+                onClick={e=>{e.stopPropagation();deleteProject(p.id);}} disabled={deleting===p.id}>
                 {deleting===p.id ? <Spinner /> : "✕"}
               </button>
             </div>
           </div>
         ))}
-        {projects.length===0 && (
-          <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.72rem", color:"var(--muted)", padding:"12px 0" }}>No projects yet.</p>
-        )}
+        {projects.length===0 && <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.72rem", color:"var(--muted)", padding:"12px 0" }}>No projects yet.</p>}
       </div>
 
-      {/* edit form */}
+      {/* form */}
       {activeId ? (
         <div>
-          <h2 className="admin-section-title">
-            {activeId==="__new__" ? "New project" : "Edit project"}<span>.</span>
-          </h2>
+          <h2 className="admin-section-title">{activeId==="__new__"?"New project":"Edit project"}<span>.</span></h2>
           <p className="admin-section-sub">
-            Images path: <span style={{ color:"var(--cyan)", fontFamily:"var(--font-mono)" }}>public/{"{title}"}/image_1.ext</span>
+            {isDev
+              ? <span style={{ color:"var(--cyan)" }}>✓ Dev mode — gambar otomatis disimpan ke public/{"{slug}"}/image_N.ext</span>
+              : <span>Production: copy gambar ke public/{"{slug}"}/image_N.ext lalu deploy ulang.</span>
+            }
           </p>
 
           <div className="admin-card">
@@ -455,7 +462,9 @@ const SectionProjects = ({ showToast }) => {
               ))}
             </div>
             <div className="admin-skill-add">
-              <input className="admin-input" placeholder="React" value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(e.preventDefault(),addTag())} />
+              <input className="admin-input" placeholder="React" value={tagInput}
+                onChange={e=>setTagInput(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&(e.preventDefault(),addTag())} />
               <button className="admin-btn admin-btn--ghost admin-btn--sm" onClick={addTag} type="button">+ Add</button>
             </div>
           </div>
@@ -463,26 +472,20 @@ const SectionProjects = ({ showToast }) => {
           <div className="admin-card">
             <p className="admin-card__title">Images (3 slots)</p>
             <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.65rem", color:"var(--muted)", marginBottom:"10px", lineHeight:"1.6" }}>
-              Select files below, then manually copy them to{" "}
-              <span style={{ color:"var(--cyan)" }}>
+              Path: <span style={{ color:"var(--cyan)" }}>
                 public/{form.title?.toLowerCase().replace(/\s+/g,"-")||"{title}"}/image_1.ext
               </span>
             </p>
             <div className="admin-img-grid">
               {[0,1,2].map(i => (
-                <ImgSlot
-                  key={i}
-                  label={`img ${i+1}`}
-                  value={form.images?.[i]}
-                  onChange={file => setImg(i, file)}
-                />
+                <ImgSlot key={i} label={`img ${i+1}`} value={form.images?.[i]} onChange={(file)=>setImg(i,file)} />
               ))}
             </div>
           </div>
 
           <div style={{ display:"flex", justifyContent:"flex-end", marginTop:"1rem" }}>
             <button className="admin-btn admin-btn--primary" onClick={save} disabled={saving}>
-              {saving ? <><Spinner /> Saving...</> : (activeId==="__new__" ? "↗ Create project" : "↗ Save changes")}
+              {saving ? <><Spinner /> Saving...</> : (activeId==="__new__"?"↗ Create project":"↗ Save changes")}
             </button>
           </div>
         </div>
@@ -499,9 +502,9 @@ const SectionProjects = ({ showToast }) => {
    SECTION: CONTACT
 ════════════════════════════════════════════════════════════ */
 const SectionContact = ({ showToast }) => {
-  const [data, setData]   = useState({ name:"", email:"", phone:"", location:"", github:"", linkedin:"", instagram:"", additionalLinks:[] });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
+  const [data, setData]           = useState({ name:"", email:"", phone:"", location:"", github:"", linkedin:"", instagram:"", additionalLinks:[] });
+  const [loading, setLoading]     = useState(true);
+  const [saving, setSaving]       = useState(false);
   const [linkInput, setLinkInput] = useState({ label:"", url:"" });
 
   useEffect(() => {
@@ -510,33 +513,23 @@ const SectionContact = ({ showToast }) => {
         const snap = await getDoc(doc(db,"meta","contact"));
         if (snap.exists()) {
           const d = snap.data();
-          setData({
-            name: d.name||"", email: d.email||"", phone: d.phone||"",
-            location: d.location||"", github: d.github||"",
-            linkedin: d.linkedin||"", instagram: d.instagram||"",
-            additionalLinks: d.additionalLinks||[],
-          });
+          setData({ name:d.name||"", email:d.email||"", phone:d.phone||"", location:d.location||"", github:d.github||"", linkedin:d.linkedin||"", instagram:d.instagram||"", additionalLinks:d.additionalLinks||[] });
         }
       } finally { setLoading(false); }
     };
     fetch();
   }, []);
 
-  const addLink = () => {
-    if (!linkInput.label.trim() || !linkInput.url.trim()) return;
-    setData(p => ({ ...p, additionalLinks:[...p.additionalLinks, { ...linkInput }] }));
-    setLinkInput({ label:"", url:"" });
-  };
-  const removeLink = (i) => setData(p => ({ ...p, additionalLinks: p.additionalLinks.filter((_,idx)=>idx!==i) }));
+  const addLink    = () => { if(!linkInput.label.trim()||!linkInput.url.trim())return; setData(p=>({...p,additionalLinks:[...p.additionalLinks,{...linkInput}]})); setLinkInput({label:"",url:""}); };
+  const removeLink = (i) => setData(p=>({...p,additionalLinks:p.additionalLinks.filter((_,idx)=>idx!==i)}));
 
   const save = async () => {
     setSaving(true);
     try {
       await setDoc(doc(db,"meta","contact"), data);
       showToast("Contact info saved.");
-    } catch {
-      showToast("Failed to save.", "error");
-    } finally { setSaving(false); }
+    } catch { showToast("Failed to save.", "error"); }
+    finally { setSaving(false); }
   };
 
   if (loading) return <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.75rem", color:"var(--muted)" }}>Loading...</p>;
@@ -555,33 +548,21 @@ const SectionContact = ({ showToast }) => {
 
       <div className="admin-card">
         <p className="admin-card__title">Contact details</p>
-        <Field label="Email">
-          <input className="admin-input" type="email" value={data.email} onChange={e=>setData(p=>({...p,email:e.target.value}))} placeholder="you@email.com" />
-        </Field>
-        <Field label="Phone">
-          <input className="admin-input" type="tel" value={data.phone} onChange={e=>setData(p=>({...p,phone:e.target.value}))} placeholder="+62 ..." />
-        </Field>
-        <Field label="Location">
-          <input className="admin-input" value={data.location} onChange={e=>setData(p=>({...p,location:e.target.value}))} placeholder="South Tangerang, ID" />
-        </Field>
+        <Field label="Email"><input className="admin-input" type="email" value={data.email} onChange={e=>setData(p=>({...p,email:e.target.value}))} placeholder="you@email.com" /></Field>
+        <Field label="Phone"><input className="admin-input" type="tel" value={data.phone} onChange={e=>setData(p=>({...p,phone:e.target.value}))} placeholder="+62 ..." /></Field>
+        <Field label="Location"><input className="admin-input" value={data.location} onChange={e=>setData(p=>({...p,location:e.target.value}))} placeholder="South Tangerang, ID" /></Field>
       </div>
 
       <div className="admin-card">
         <p className="admin-card__title">Social links</p>
-        <Field label="GitHub URL">
-          <input className="admin-input" value={data.github} onChange={e=>setData(p=>({...p,github:e.target.value}))} placeholder="https://github.com/..." />
-        </Field>
-        <Field label="LinkedIn URL">
-          <input className="admin-input" value={data.linkedin} onChange={e=>setData(p=>({...p,linkedin:e.target.value}))} placeholder="https://linkedin.com/in/..." />
-        </Field>
-        <Field label="Instagram URL">
-          <input className="admin-input" value={data.instagram} onChange={e=>setData(p=>({...p,instagram:e.target.value}))} placeholder="https://instagram.com/..." />
-        </Field>
+        <Field label="GitHub URL"><input className="admin-input" value={data.github} onChange={e=>setData(p=>({...p,github:e.target.value}))} placeholder="https://github.com/..." /></Field>
+        <Field label="LinkedIn URL"><input className="admin-input" value={data.linkedin} onChange={e=>setData(p=>({...p,linkedin:e.target.value}))} placeholder="https://linkedin.com/in/..." /></Field>
+        <Field label="Instagram URL"><input className="admin-input" value={data.instagram} onChange={e=>setData(p=>({...p,instagram:e.target.value}))} placeholder="https://instagram.com/..." /></Field>
       </div>
 
       <div className="admin-card">
         <p className="admin-card__title">Additional links</p>
-        {data.additionalLinks.map((link, i) => (
+        {data.additionalLinks.map((link,i) => (
           <div key={i} style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"6px" }}>
             <span style={{ fontFamily:"var(--font-mono)", fontSize:"0.75rem", color:"var(--cyan)", flex:"0 0 80px" }}>{link.label}</span>
             <span style={{ fontFamily:"var(--font-body)", fontSize:"0.78rem", color:"var(--muted)", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{link.url}</span>
@@ -615,9 +596,9 @@ const SECTIONS = [
 ];
 
 const Admin = () => {
-  const [active, setActive]     = useState("home");
-  const { dispatch }            = useContext(AuthContext);
-  const navigate                = useNavigate();
+  const [active, setActive]        = useState("home");
+  const { dispatch }               = useContext(AuthContext);
+  const navigate                   = useNavigate();
   const { toast, show: showToast } = useToast();
 
   const logout = async () => {
@@ -628,28 +609,23 @@ const Admin = () => {
 
   return (
     <div className="admin">
-      {/* ── SIDEBAR ── */}
       <aside className="admin-sidebar" aria-label="Admin navigation">
         <div className="admin-sidebar__brand">
           <p className="admin-sidebar__brand-name">Dev<span>/</span></p>
-          <p className="admin-sidebar__brand-sub">Admin panel</p>
+          <p className="admin-sidebar__brand-sub">
+            Admin panel {isDev && <span style={{ color:"var(--cyan)" }}>· dev</span>}
+          </p>
         </div>
-
         <nav className="admin-sidebar__nav" aria-label="Sections">
           <p className="admin-sidebar__label">Content</p>
           {SECTIONS.map(s => (
-            <button
-              key={s.id}
-              className={`admin-nav-btn ${active===s.id?"active":""}`}
-              onClick={() => setActive(s.id)}
-              aria-current={active===s.id ? "page" : undefined}
-            >
+            <button key={s.id} className={`admin-nav-btn ${active===s.id?"active":""}`}
+              onClick={()=>setActive(s.id)} aria-current={active===s.id?"page":undefined}>
               <span className="admin-nav-btn__icon">{s.icon}</span>
               {s.label}
             </button>
           ))}
         </nav>
-
         <div className="admin-sidebar__footer">
           <button className="admin-logout" onClick={logout}>
             <span>↩</span> Logout
@@ -657,14 +633,12 @@ const Admin = () => {
         </div>
       </aside>
 
-      {/* ── MAIN ── */}
       <main className="admin-main">
-        {active === "home"     && <SectionHome     showToast={showToast} />}
-        {active === "projects" && <SectionProjects showToast={showToast} />}
-        {active === "contact"  && <SectionContact  showToast={showToast} />}
+        {active==="home"     && <SectionHome     showToast={showToast} />}
+        {active==="projects" && <SectionProjects showToast={showToast} />}
+        {active==="contact"  && <SectionContact  showToast={showToast} />}
       </main>
 
-      {/* ── TOAST ── */}
       <Toast toast={toast} />
     </div>
   );
