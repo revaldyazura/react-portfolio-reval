@@ -198,7 +198,7 @@ const Projects = () => {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const q    = query(collection(db, "projects"), orderBy("order", "asc"));
+        const q    = query(collection(db, "projects"), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       } catch (err) {

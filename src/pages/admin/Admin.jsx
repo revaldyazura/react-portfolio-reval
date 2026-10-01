@@ -305,7 +305,7 @@ const SectionProjects = ({ showToast }) => {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const q    = query(collection(db,"projects"), orderBy("order","asc"));
+        const q    = query(collection(db,"projects"), orderBy("createdAt","desc"));
         const snap = await getDocs(q);
         setProjects(snap.docs.map(d => ({ id:d.id, ...d.data() })));
       } finally { setLoading(false); }
@@ -358,7 +358,7 @@ const SectionProjects = ({ showToast }) => {
         }
       }
 
-      const payload = { ...form, images, order: form.order ?? projects.length };
+      const payload = { ...form, images, createdAt: new Date() };
 
       if (activeId === "__new__") {
         const ref  = await addDoc(collection(db,"projects"), payload);
@@ -436,9 +436,7 @@ const SectionProjects = ({ showToast }) => {
             <Field label="Description">
               <textarea className="admin-textarea" rows={4} value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} placeholder="What is this project about?" style={{ minHeight:"100px" }} />
             </Field>
-            <Field label="Order (sort position)">
-              <input className="admin-input" type="number" min={0} value={form.order} onChange={e=>setForm(p=>({...p,order:Number(e.target.value)}))} style={{ width:"100px" }} />
-            </Field>
+            
           </div>
 
           <div className="admin-card">
