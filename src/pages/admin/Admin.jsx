@@ -32,7 +32,7 @@ const uploadToPublic = async (file, destPath) => {
 
   const res  = await fetch("/dev-upload", { method: "POST", body: formData });
   const json = await res.json();
-  return json; // { ok: true, path: "/cv.pdf" }
+  return json; // { ok: true, path: "/cv_raihan_revaldy_azura.pdf" }
 };
 
 /* ════════════════════════════════════════════════════════════
@@ -121,7 +121,7 @@ const Field = ({ label, children }) => (
    SECTION: HOME
 ════════════════════════════════════════════════════════════ */
 const SectionHome = ({ showToast }) => {
-  const [data, setData]             = useState({ name:"", role:"", bio:"", skills:[], cvPath:"/cv.pdf" });
+  const [data, setData]             = useState({ name:"", role:"", bio:"", skills:[], cvPath:"/cv_raihan_revaldy_azura.pdf" });
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const [skillInput, setSkillInput] = useState("");
@@ -134,7 +134,7 @@ const SectionHome = ({ showToast }) => {
         const snap = await getDoc(doc(db, "meta", "home"));
         if (snap.exists()) {
           const d = snap.data();
-          setData({ name: d.name||"", role: d.role||"", bio: d.bio||"", skills: d.skills||[], cvPath: d.cvPath||"/cv.pdf" });
+          setData({ name: d.name||"", role: d.role||"", bio: d.bio||"", skills: d.skills||[], cvPath: d.cvPath||"/cv_raihan_revaldy_azura.pdf" });
           setExpItems(d.experience || []);
         }
       } finally { setLoading(false); }
@@ -160,15 +160,15 @@ const SectionHome = ({ showToast }) => {
 
       if (cvFile) {
         const ext    = cvFile.name.split(".").pop();
-        const dest   = `cv.${ext}`; // → public/cv.pdf
+        const dest   = `cv_raihan_revaldy_azura.${ext}`; // → public/cv_raihan_revaldy_azura.pdf
         const result = await uploadToPublic(cvFile, dest);
 
         if (result.ok) {
-          cvPath = result.path; // "/cv.pdf"
-          showToast("CV uploaded to public/cv.pdf ✓");
+          cvPath = result.path; // "/cv_raihan_revaldy_azura.pdf"
+          showToast("CV uploaded to public/cv_raihan_revaldy_azura.pdf ✓");
         } else if (result.manual) {
           cvPath = "/" + dest;
-          showToast(`Production: copy "${cvFile.name}" → public/cv.pdf manually`, "error");
+          showToast(`Production: copy "${cvFile.name}" → public/cv_raihan_revaldy_azura.pdf manually`, "error");
         } else {
           showToast("CV upload failed: " + result.error, "error");
         }
@@ -228,7 +228,7 @@ const SectionHome = ({ showToast }) => {
         </Field>
         {!isDev && (
           <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.65rem", color:"var(--muted)", marginTop:"8px", lineHeight:"1.6" }}>
-            ⚠ Production: copy PDF ke <span style={{ color:"var(--cyan)" }}>public/cv.pdf</span> lalu deploy ulang.
+            ⚠ Production: copy PDF ke <span style={{ color:"var(--cyan)" }}>public/cv_raihan_revaldy_azura.pdf</span> lalu deploy ulang.
           </p>
         )}
       </div>

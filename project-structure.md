@@ -3,7 +3,7 @@
     └── 📁.firebase
         ├── hosting.ZGlzdA.cache
     └── 📁public
-        ├── cv.pdf
+        ├── cv_raihan_revaldy_azura.pdf
         ├── favicon-ori.svg
         ├── favicon.svg
         ├── icons.svg

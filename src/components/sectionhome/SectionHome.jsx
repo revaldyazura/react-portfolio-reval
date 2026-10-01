@@ -7,7 +7,7 @@ import {
 } from "firebase/firestore";
 
 const SectionHome = ({ showToast }) => {
-  const [data, setData]             = useState({ name:"", role:"", bio:"", skills:[], cvUrl:"/cv.pdf" });
+  const [data, setData]             = useState({ name:"", role:"", bio:"", skills:[], cvPath:"/cv_raihan_revaldy_azura.pdf" });
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const [skillInput, setSkillInput] = useState("");
@@ -20,7 +20,7 @@ const SectionHome = ({ showToast }) => {
         const snap = await getDoc(doc(db, "meta", "home"));
         if (snap.exists()) {
           const d = snap.data();
-          setData({ name: d.name||"", role: d.role||"", bio: d.bio||"", skills: d.skills||[], cvUrl: d.cvUrl||"/cv.pdf" });
+          setData({ name: d.name||"", role: d.role||"", bio: d.bio||"", skills: d.skills||[], cvPath: d.cvPath||"/cv_raihan_revaldy_azura.pdf" });
           setExpItems(d.experience || []);
         }
       } finally { setLoading(false); }
@@ -42,26 +42,26 @@ const SectionHome = ({ showToast }) => {
   const save = async () => {
     setSaving(true);
     try {
-      let cvUrl = data.cvUrl;
+      let cvPath = data.cvPath;
 
       if (cvFile) {
         const ext    = cvFile.name.split(".").pop();
-        const dest   = `cv.${ext}`; // → public/cv.pdf
+        const dest   = `cv_raihan_revaldy_azura.${ext}`; // → public/cv_raihan_revaldy_azura.pdf
         const result = await uploadToPublic(cvFile, dest);
 
         if (result.ok) {
-          cvUrl = result.path; // "/cv.pdf"
-          showToast("CV uploaded to public/cv.pdf ✓");
+          cvPath = result.path; // "/cv_raihan_revaldy_azura.pdf"
+          showToast("CV uploaded to public/cv_raihan_revaldy_azura.pdf ✓");
         } else if (result.manual) {
-          cvUrl = "/" + dest;
-          showToast(`Production: copy "${cvFile.name}" → public/cv.pdf manually`, "error");
+          cvPath = "/" + dest;
+          showToast(`Production: copy "${cvFile.name}" → public/cv_raihan_revaldy_azura.pdf manually`, "error");
         } else {
           showToast("CV upload failed: " + result.error, "error");
         }
       }
 
-      await setDoc(doc(db, "meta", "home"), { ...data, cvUrl, experience: expItems });
-      setData(p => ({ ...p, cvUrl }));
+      await setDoc(doc(db, "meta", "home"), { ...data, cvPath, experience: expItems });
+      setData(p => ({ ...p, cvPath }));
       setCvFile(null);
       if (!cvFile) showToast("Home content saved.");
     } catch (err) {
@@ -94,7 +94,7 @@ const SectionHome = ({ showToast }) => {
       <div className="admin-card">
         <p className="admin-card__title">CV / Resume</p>
         <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.68rem", color:"var(--muted)", marginBottom:"10px" }}>
-          Current path: <span style={{ color:"var(--cyan)" }}>{data.cvUrl}</span>
+          Current path: <span style={{ color:"var(--cyan)" }}>{data.cvPath}</span>
           {isDev && <span style={{ color:"var(--cyan)", marginLeft:"8px" }}>— auto upload aktif ✓</span>}
         </p>
         <Field label="Upload new CV (PDF)">
@@ -114,7 +114,7 @@ const SectionHome = ({ showToast }) => {
         </Field>
         {!isDev && (
           <p style={{ fontFamily:"var(--font-mono)", fontSize:"0.65rem", color:"var(--muted)", marginTop:"8px", lineHeight:"1.6" }}>
-            ⚠ Production: copy PDF ke <span style={{ color:"var(--cyan)" }}>public/cv.pdf</span> lalu deploy ulang.
+            ⚠ Production: copy PDF ke <span style={{ color:"var(--cyan)" }}>public/cv_raihan_revaldy_azura.pdf</span> lalu deploy ulang.
           </p>
         )}
       </div>
